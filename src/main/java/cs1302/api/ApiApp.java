@@ -26,10 +26,10 @@ public class ApiApp extends Application {
 
     public static final String CS_API = "https://www.cheapshark.com/api/1.0/deals?storeID=1";
     public static final String INPUT_INSTRUCTIONS =
-        "Enter criteria for the sales, then press the Search button. If you have no preference for"
-        + " a given element, leave it blank";
+        "Enter criteria for the sales, then press the Search button.\nIf you have no preference for"
+        + " a given element,\nleave it blank.\n";
     public static final String DISPLAY_INSTRUCTIONS = "After you have filtered your results,"
-        + " select a game, then press the load button";
+        + "\nselect a game, then press the load button.\n";
 
     // HttpClient taken from project 4
     /** HTTP client. */
@@ -78,7 +78,7 @@ public class ApiApp extends Application {
      * constructor is executed in Step 2 of the JavaFX Application Life-Cycle.
      */
     public ApiApp() {
-        root = new HBox();
+        root = new HBox(10);
         this.inputVBox = new VBox();
         this.displayVBox = new VBox();
         this.minPrice = new Label("Minimum Price of Game (in USD)");
@@ -117,7 +117,9 @@ public class ApiApp extends Application {
                                          discount, loadButton);
         gameImageContainer.setFitWidth(120);
         gameImageContainer.setFitHeight(45);
-        gameImageContainer.setPreserveRatio(true);
+        currencyDropdown.getItems().addAll("USD", "EUR", "CNY", "CHF", "AUD",
+                                           "PLN", "TRY", "CAD", "JPY", "GBP",
+                                           "NZD", "KRW", "DKK", "HKD");
     } // init
 
     /** {@inheritDoc} */
