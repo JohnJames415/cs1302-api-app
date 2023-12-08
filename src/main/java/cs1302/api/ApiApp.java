@@ -33,9 +33,9 @@ public class ApiApp extends Application {
     public static final String CS_API = "https://www.cheapshark.com/api/1.0/deals?storeID=1";
     public static final String INPUT_INSTRUCTIONS =
         "Enter criteria for the sales, then press the Search button.\nIf you have no preference for"
-        + " a given element,\nleave it blank.\n";
-    public static final String DISPLAY_INSTRUCTIONS = "After you have filtered your results,"
-        + "\nselect a game, then press the load button.\n";
+        + " a given option,\nleave it blank.";
+    public static final String DISPLAY_INSTRUCTIONS = "After you have filtered your results,\n"
+        + "select a game, then press the load button.";
 
     // HttpClient taken from project 4
     /** HTTP client. */
@@ -138,8 +138,11 @@ public class ApiApp extends Application {
                 if(response.statusCode() != 200) {
                     throw new IOException(response.toString());
                 }
-                CheapSharkResult results = GSON.fromJson(response.body(), CheapSharkResult.class);
-                System.out.println(response.body());
+                Game[] results = GSON.fromJson(response.body(), Game[].class);
+
+                for (int i = 0; i < results.length; i++) {
+                    gameList.getItems().addAll(results[i].title);
+                }
             } catch (InterruptedException | IOException error) {
                 System.out.println("hi");
             }
@@ -166,6 +169,8 @@ public class ApiApp extends Application {
         HBox.setHgrow(gameList, Priority.ALWAYS);
         currencyDropdown.getSelectionModel().select(0);
         searchButton.setOnAction(getGames);
+        dropdownInstructions.setWrapText(true);
+        inputInstructions.setWrapText(true);
     } // init
 
     /** {@inheritDoc} */
