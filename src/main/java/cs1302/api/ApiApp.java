@@ -1,8 +1,9 @@
-package cs1302.api;
+ package cs1302.api;
 
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
+import java.io.IOException;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
@@ -16,8 +17,13 @@ import com.google.gson.Gson;
 import java.net.http.HttpRequest;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.URI;
+import java.net.URL;
 import com.google.gson.GsonBuilder;
+import javafx.scene.layout.Priority;
+import javafx.event.EventHandler;
+import javafx.event.ActionEvent;
 
 /**
  * REPLACE WITH NON-SHOUTING DESCRIPTION OF YOUR APP.
@@ -72,13 +78,20 @@ public class ApiApp extends Application {
     Label scoreLabel;
     Label discount;
     Button loadButton;
+    //Runnable getGames;
+    //Runnable displayGame;
+    EventHandler<ActionEvent> getGames;
+    EventHandler<ActionEvent> displayGame;
+
+    EventHandler<ActionEvent> getGamesEvent;
+    EventHandler<ActionEvent> displayGameEvent;
 
     /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
      * constructor is executed in Step 2 of the JavaFX Application Life-Cycle.
      */
     public ApiApp() {
-        root = new HBox(10);
+        root = new HBox(60);
         this.inputVBox = new VBox();
         this.displayVBox = new VBox();
         this.minPrice = new Label("Minimum Price of Game (in USD)");
@@ -101,6 +114,36 @@ public class ApiApp extends Application {
         this.scoreLabel = new Label();
         this.discount = new Label();
         this.loadButton = new Button("Load");
+        //this.getGamesEvent = e -> getGames;
+        //this.displayGameEvent = e -> displayGame;
+        this.getGames = e -> {
+            try {
+                String minPriceData = "";
+                String maxPriceData = "";
+                String metacriticData = "";
+                if (!minPriceBar.getText().equals("")) {
+                    minPriceData = "&lowerPrice="+ minPriceBar.getText();
+                }
+                if (!maxPriceBar.getText().equals("")) {
+                    maxPriceData = "&upperPrice="+ maxPriceBar.getText();
+                }
+                if (!metacriticScoreBar.getText().equals("")) {
+                    metacriticData = "&metacritic="+ metacriticScoreBar.getText();
+                }
+                String uri = CS_API + minPriceData + maxPriceData + metacriticData;
+                //build request
+                HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).build();
+                HttpResponse<String> response = HTTP_CLIENT.send(request, BodyHandlers.ofString());
+                // ensure good request
+                if(response.statusCode() != 200) {
+                    throw new IOException(response.toString());
+                }
+                CheapSharkResult results = GSON.fromJson(response.body(), CheapSharkResult.class);
+                System.out.println(response.body());
+            } catch (InterruptedException | IOException error) {
+                System.out.println("hi");
+            }
+        };
 
     } // ApiApp
 
@@ -120,6 +163,9 @@ public class ApiApp extends Application {
         currencyDropdown.getItems().addAll("USD", "EUR", "CNY", "CHF", "AUD",
                                            "PLN", "TRY", "CAD", "JPY", "GBP",
                                            "NZD", "KRW", "DKK", "HKD");
+        HBox.setHgrow(gameList, Priority.ALWAYS);
+        currencyDropdown.getSelectionModel().select(0);
+        searchButton.setOnAction(getGames);
     } // init
 
     /** {@inheritDoc} */
