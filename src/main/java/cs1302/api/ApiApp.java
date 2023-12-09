@@ -25,6 +25,9 @@ import com.google.gson.GsonBuilder;
 import javafx.scene.layout.Priority;
 import javafx.event.EventHandler;
 import javafx.event.ActionEvent;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 
 /**
  * REPLACE WITH NON-SHOUTING DESCRIPTION OF YOUR APP.
@@ -83,10 +86,6 @@ public class ApiApp extends Application {
     Button loadButton;
     EventHandler<ActionEvent> getGames;
     EventHandler<ActionEvent> displayGame;
-
-    EventHandler<ActionEvent> getGamesEvent;
-    EventHandler<ActionEvent> displayGameEvent;
-
     Game[] results;
 
     /**
@@ -147,7 +146,7 @@ public class ApiApp extends Application {
                 }
                 gameList.getSelectionModel().select(0);
             } catch (InterruptedException | IOException error) {
-                System.out.println("an error has occurred");
+                alertError(error);
             }
         };
         this.displayGame = e -> {
@@ -161,7 +160,6 @@ public class ApiApp extends Application {
                         String wantString = "&want=" + currencyDropdown.getValue();
                         String amountString = "&amount=" + results[i].normalPrice;
                         String uri = CC_API + haveString + wantString + amountString;
-                        System.out.println(uri);
                         //build request
                         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri))
                         .header("X-Api-Key", API_KEY)
@@ -173,8 +171,6 @@ public class ApiApp extends Application {
                         CurrencyConvert data = GSON
                         .fromJson(response.body(), CurrencyConvert.class);
 
-                        System.out.println(data.error);
-
                         normalPriceLabel.setText("Normal Price: "
                                                  + data.newAmount + " "
                                                  + currencyDropdown.getValue());
@@ -182,7 +178,6 @@ public class ApiApp extends Application {
                         wantString = "&want=" + currencyDropdown.getValue();
                         amountString = "&amount=" + results[i].salePrice;
                         uri = CC_API + haveString + wantString + amountString;
-                        System.out.println(uri);
                         //build request
                         request = HttpRequest.newBuilder().uri(URI.create(uri))
                         .header("Content-Type", "application/json")
@@ -192,17 +187,12 @@ public class ApiApp extends Application {
 
                         data = GSON
                         .fromJson(response.body(), CurrencyConvert.class);
-
-                        System.out.println(data.error);
-
                         salePriceLabel.setText("Sale Price: "
                                             + data.newAmount + " " + currencyDropdown.getValue());
-
-                        System.out.println(data);
                         scoreLabel.setText("Metacritic Score: " + results[i].metacriticScore);
                         discount.setText("Discount %: " + results[i].savings);
                     } catch (InterruptedException | IOException error) {
-                        System.out.println("an error had occurred");
+                        alertError(error);
                     }
                 }
             }
@@ -258,5 +248,20 @@ public class ApiApp extends Application {
     public void stop() {
         System.out.println("stop() called");
     } // stop
+
+    // From hw 7.6
+    /**
+     * This method opens an error window for the given throwable.
+     *
+     * @param cause the the throwable to display on the window.
+     */
+    public static void alertError(Throwable cause) {
+        TextArea text = new TextArea(cause.toString());
+        text.setEditable(false);
+        Alert alert = new Alert(AlertType.ERROR);
+        alert.getDialogPane().setContent(text);
+        alert.setResizable(true);
+        alert.showAndWait();
+    } // alertError
 
 } // ApiApp
