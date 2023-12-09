@@ -1,4 +1,4 @@
- package cs1302.api;
+package cs1302.api;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -42,6 +42,9 @@ public class ApiApp extends Application {
         + " a given option,\nleave it blank.";
     public static final String DISPLAY_INSTRUCTIONS = "After you have filtered your results,\n"
         + "select a game, then press the load button.";
+    public static final String NOTICE_TEXT = "Note: This app prioritizes giving you discounted"
+        + " games\n(and those will gravitate toward the top of the dropdown).\nAfter which, the"
+        + " program will give you options for any\ngame within the specified criteria.";
 
     // HttpClient taken from project 4
     /** HTTP client. */
@@ -87,6 +90,7 @@ public class ApiApp extends Application {
     EventHandler<ActionEvent> getGames;
     EventHandler<ActionEvent> displayGame;
     Game[] results;
+    Label noticeLabel;
 
     /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
@@ -106,7 +110,6 @@ public class ApiApp extends Application {
         this.currencyLabel = new Label("Currency (to display prices in)");
         this.currencyDropdown = new ComboBox<String>();
         this.searchButton = new Button("Search");
-
         this.dropdownInstructions = new Label(DISPLAY_INSTRUCTIONS);
         this.gameList = new ComboBox<String>();
         this.gameTitle = new Label();
@@ -116,35 +119,12 @@ public class ApiApp extends Application {
         this.scoreLabel = new Label();
         this.discount = new Label();
         this.loadButton = new Button("Load");
+        this.noticeLabel = new Label(NOTICE_TEXT);
         this.getGames = e -> {
             try {
-                String minPriceData = "";
-                String maxPriceData = "";
-                String metacriticData = "";
-                if (!minPriceBar.getText().equals("")) {
-                    minPriceData = "&lowerPrice="+ minPriceBar.getText();
-                }
-                if (!maxPriceBar.getText().equals("")) {
-                    maxPriceData = "&upperPrice="+ maxPriceBar.getText();
-                }
-                if (!metacriticScoreBar.getText().equals("")) {
-                    metacriticData = "&metacritic="+ metacriticScoreBar.getText();
-                }
-                String uri = CS_API + minPriceData + maxPriceData + metacriticData;
-                //build request
-                HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).build();
-                HttpResponse<String> response = HTTP_CLIENT.send(request, BodyHandlers.ofString());
-
-                results = GSON.fromJson(response.body(), Game[].class);
-
-                if(results.length == 0) {
-                    throw new IOException("No results found for given criteria.");
-                }
-
-                for (int i = 0; i < results.length; i++) {
-                    gameList.getItems().addAll(results[i].title);
-                }
-                gameList.getSelectionModel().select(0);
+                results = getGamesInfo(minPriceBar, maxPriceBar, metacriticScoreBar);
+                updateDropdown(gameList, results);
+                loadButton.setDisable(false);
             } catch (InterruptedException | IOException error) {
                 alertError(error);
             }
@@ -155,40 +135,12 @@ public class ApiApp extends Application {
                     try {
                         gameTitle.setText(results[i].title);
                         gameImageContainer.setImage(new Image(results[i].thumb));
-
-                        String haveString = "?have=USD";
-                        String wantString = "&want=" + currencyDropdown.getValue();
-                        String amountString = "&amount=" + results[i].normalPrice;
-                        String uri = CC_API + haveString + wantString + amountString;
-                        //build request
-                        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri))
-                        .header("X-Api-Key", API_KEY)
-                        .header("Content-Type", "application/json")
-                        .build();
-                        HttpResponse<String> response =
-                        HTTP_CLIENT.send(request, BodyHandlers.ofString());
-
-                        CurrencyConvert data = GSON
-                        .fromJson(response.body(), CurrencyConvert.class);
-
-                        normalPriceLabel.setText("Normal Price: "
-                                                 + data.newAmount + " "
+                        CurrencyConvert data = getCCInfo(currencyDropdown, results, false, i);
+                        normalPriceLabel.setText("Normal Price: " + data.newAmount + " "
                                                  + currencyDropdown.getValue());
-                        haveString = "?have=USD";
-                        wantString = "&want=" + currencyDropdown.getValue();
-                        amountString = "&amount=" + results[i].salePrice;
-                        uri = CC_API + haveString + wantString + amountString;
-                        //build request
-                        request = HttpRequest.newBuilder().uri(URI.create(uri))
-                        .header("Content-Type", "application/json")
-                        .header("X-Api-Key", API_KEY)
-                        .build();
-                        response = HTTP_CLIENT.send(request, BodyHandlers.ofString());
-
-                        data = GSON
-                        .fromJson(response.body(), CurrencyConvert.class);
-                        salePriceLabel.setText("Sale Price: "
-                                            + data.newAmount + " " + currencyDropdown.getValue());
+                        data = getCCInfo(currencyDropdown, results, true, i);
+                        salePriceLabel.setText("Sale Price: " + data.newAmount + " "
+                                               + currencyDropdown.getValue());
                         scoreLabel.setText("Metacritic Score: " + results[i].metacriticScore);
                         discount.setText("Discount %: " + results[i].savings);
                     } catch (InterruptedException | IOException error) {
@@ -198,7 +150,7 @@ public class ApiApp extends Application {
             }
         };
 
-} // ApiApp
+    } // ApiApp
 
     //Based of init() method in project 4
     /** {@inheritDoc} */
@@ -210,7 +162,7 @@ public class ApiApp extends Application {
                                        currencyLabel, currencyDropdown, searchButton);
         displayVBox.getChildren().addAll(dropdownInstructions, gameList, gameTitle,
                                          gameImageContainer, salePriceLabel, normalPriceLabel,
-                                         scoreLabel, discount, loadButton);
+                                         scoreLabel, discount, loadButton, noticeLabel);
         gameImageContainer.setFitWidth(120);
         gameImageContainer.setFitHeight(45);
         currencyDropdown.getItems().addAll("USD", "EUR", "CNY", "CHF", "AUD",
@@ -220,8 +172,10 @@ public class ApiApp extends Application {
         currencyDropdown.getSelectionModel().select(0);
         searchButton.setOnAction(getGames);
         loadButton.setOnAction(displayGame);
+        loadButton.setDisable(true);
         dropdownInstructions.setWrapText(true);
         inputInstructions.setWrapText(true);
+        noticeLabel.setWrapText(true);
     } // init
 
     /** {@inheritDoc} */
@@ -253,7 +207,7 @@ public class ApiApp extends Application {
     /**
      * This method opens an error window for the given throwable.
      *
-     * @param cause the the throwable to display on the window.
+     * @param cause the throwable to display on the window.
      */
     public static void alertError(Throwable cause) {
         TextArea text = new TextArea(cause.toString());
@@ -263,5 +217,99 @@ public class ApiApp extends Application {
         alert.setResizable(true);
         alert.showAndWait();
     } // alertError
+
+
+    /**
+     * This method assigns a provided value to a string iff the provided
+     * is not empty.
+     *
+     * @param textfield the textfield to evaluate.
+     * @param value String to be assigned if it's not empty.
+     * @return the string to be assigned to the variable.
+     */
+    public static String stringAssignment(TextField textfield, String value) {
+        if (textfield.getText().equals("")) {
+            return "";
+        } else {
+            return value + textfield.getText();
+        }
+    }
+
+    /**
+     * This method goes through the process of sending out the HttpRequest, getting the
+     * response, and returning the CurrencyConvert object created by it.
+     *
+     * @param currencyDropdown the dropdown used to get the currency value from.
+     * @param results the array of Game objects to get prices from.
+     * @param isSalePrice true if converting the salePrice of a game, and false if it's the
+     * normal price.
+     * @param index the index to get the prices from in the Game array.
+     * @return the CurrencyConvert object retrieved from the API.
+     */
+    public static CurrencyConvert getCCInfo(ComboBox<String> currencyDropdown, Game[] results,
+                                            boolean isSalePrice, int index) throws IOException,
+        InterruptedException {
+        String haveString = "?have=USD";
+        String wantString = "&want=" + currencyDropdown.getValue();
+        String amountString;
+        if (isSalePrice) {
+            amountString = "&amount=" + results[index].salePrice;
+        } else {
+            amountString = "&amount=" + results[index].normalPrice;
+        }
+        String uri = CC_API + haveString + wantString + amountString;
+        //build request
+
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri))
+            .header("X-Api-Key", API_KEY)
+            .header("Content-Type", "application/json")
+            .build();
+        HttpResponse<String> response =
+            HTTP_CLIENT.send(request, BodyHandlers.ofString());
+
+        return GSON.fromJson(response.body(), CurrencyConvert.class);
+    }
+
+
+    /**
+     * This method goes through the process of sending out the HttpRequest, getting the
+     * response, and returning the CurrencyConvert object created by it.
+     *
+     * @param minPriceBar the text bar to get the minimum price data from.
+     * @param maxPriceBar the text bar to get the maximum price data from.
+     * @param metacriticScoreBar the text bar to get the metacritic score data from.
+     * @return the Game[] object retrieved from the API.
+     */
+    public static Game[] getGamesInfo(TextField minPriceBar, TextField maxPriceBar,
+                                            TextField metacriticScoreBar) throws IOException,
+        InterruptedException {
+        String minPriceData = stringAssignment(minPriceBar, "&lowerPrice=");
+        String maxPriceData = stringAssignment(maxPriceBar, "&upperPrice=");
+        String metacriticData = stringAssignment(metacriticScoreBar, "&metacritic=");
+        String uri = CS_API + minPriceData + maxPriceData + metacriticData;
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).build();
+        HttpResponse<String> response = HTTP_CLIENT.send(request, BodyHandlers.ofString());
+
+        if (GSON.fromJson(response.body(), Game[].class).length == 0) {
+            throw new IOException("No results found for given criteria.");
+        }
+
+        return GSON.fromJson(response.body(), Game[].class);
+
+    }
+
+    /**
+     * This method updates the dropdown whenever a new search is made.
+     *
+     * @param dropdown the dropdown to be updated.
+     * @param results the Game[] to add titles from.
+     */
+    public static void updateDropdown(ComboBox<String> dropdown, Game[] results) {
+        dropdown.getItems().clear();
+        for (int i = 0; i < results.length; i++) {
+            dropdown.getItems().addAll(results[i].title);
+        }
+        dropdown.getSelectionModel().select(0);
+    }
 
 } // ApiApp
