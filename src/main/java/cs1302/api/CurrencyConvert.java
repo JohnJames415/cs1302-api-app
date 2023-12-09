@@ -1,8 +1,19 @@
 package cs1302.api;
 
+import com.google.gson.annotations.SerializedName;
+
 public class CurrencyConvert {
-    double old_amount;
-    String old_currency;
-    String new_currency;
-    double new_amount;
+    @SerializedName("old_amount")
+    double oldAmount;
+
+    @SerializedName("old_currency")
+    String oldCurrency;
+
+    @SerializedName("new_currency")
+    String newCurrency;
+
+    @SerializedName("new_amount")
+    double newAmount;
+
+    String error;
 }
